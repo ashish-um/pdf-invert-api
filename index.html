@@ -273,6 +273,20 @@
         .success-mode .progress-bar-fill {
             background: #4ade80;
         }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
@@ -317,138 +331,202 @@
                 <input type="file" id="fileInput" accept="application/pdf">
             </label>
 
-            <div class="status-container" id="statusContainer">
-                <div class="status-header">
-                    <span id="statusText">Uploading...</span>
-                    <span id="percentText">0%</span>
+            <!-- Details Section (Hidden initially) -->
+            <div class="card" id="detailsCard" style="display: none; margin-top: 1rem; animation: slideUp 0.4s ease;">
+                <div class="hero-text">
+                    <h2 style="font-size: 1.5rem; margin-bottom: 1rem;">File Details</h2>
+                    <div
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; color: var(--text-muted); font-size: 0.95rem;">
+                        <div>
+                            <span style="display: block; color: var(--primary);">Filename</span>
+                            <span id="detailName">...</span>
+                        </div>
+                        <div>
+                            <span style="display: block; color: var(--primary);">Pages</span>
+                            <span id="detailPages">...</span>
+                        </div>
+                        <div>
+                            <span style="display: block; color: var(--primary);">Size</span>
+                            <span id="detailSize">...</span>
+                        </div>
+                        <div>
+                            <span style="display: block; color: var(--primary);">Author</span>
+                            <span id="detailAuthor">...</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="progressBar"></div>
+
+                <div class="status-container" id="statusContainer">
+                    <div class="status-header">
+                        <span id="statusText">Processing...</span>
+                        <span id="percentText">0%</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressBar"></div>
+                    </div>
                 </div>
+
+                <button class="btn" id="proccesBtn" onclick="processFile()">
+                    <i data-lucide="wand-2" width="18"></i> Invert Colors
+                </button>
             </div>
-
-            <button class="btn" id="proccesBtn" onclick="processFile()">
-                <i data-lucide="wand-2" width="18"></i> Invert Colors
-            </button>
         </div>
-    </div>
 
-    <script>
-        // Initialize Icons
-        lucide.createIcons();
+        <script>
+            // Initialize Icons
+            lucide.createIcons();
 
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const fileLabel = document.getElementById('fileLabel');
-        const processBtn = document.getElementById('proccesBtn');
-        const statusContainer = document.getElementById('statusContainer');
-        const progressBar = document.getElementById('progressBar');
-        const statusText = document.getElementById('statusText');
-        const percentText = document.getElementById('percentText');
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            const fileLabel = document.getElementById('fileLabel');
+            const detailsCard = document.getElementById('detailsCard');
+            const processBtn = document.getElementById('proccesBtn');
+            const statusContainer = document.getElementById('statusContainer');
+            const progressBar = document.getElementById('progressBar');
+            const statusText = document.getElementById('statusText');
+            const percentText = document.getElementById('percentText');
 
-        // Drag and Drop Logic
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, preventDefaults, false);
-        });
+            // Drag and Drop Logic
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, highlight, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, unhighlight, false);
-        });
-
-        function highlight(e) {
-            dropZone.classList.add('dragover');
-        }
-
-        function unhighlight(e) {
-            dropZone.classList.remove('dragover');
-        }
-
-        dropZone.addEventListener('drop', handleDrop, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            fileInput.files = files;
-            updateFileLabel();
-        }
-
-        fileInput.addEventListener('change', updateFileLabel);
-
-        function updateFileLabel() {
-            if (fileInput.files.length > 0) {
-                fileLabel.textContent = fileInput.files[0].name;
-                statusContainer.style.display = 'none';
-                progressBar.style.width = '0%';
-                processBtn.disabled = false;
-            }
-        }
-
-        async function processFile() {
-            if (fileInput.files.length === 0) {
-                alert('Please select a file first');
-                return;
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
             }
 
-            const file = fileInput.files[0];
-            const formData = new FormData();
-            formData.append('file', file);
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
 
-            // UI Reset
-            processBtn.disabled = true;
-            statusContainer.style.display = 'block';
-            statusContainer.classList.remove('success-mode');
-            progressBar.style.width = '20%';
-            statusText.textContent = 'Uploading & Processing...';
-            percentText.textContent = '20%';
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
 
-            try {
-                // Simulate some progress
-                setTimeout(() => { progressBar.style.width = '50%'; percentText.textContent = '50%'; }, 200);
+            function highlight(e) {
+                dropZone.classList.add('dragover');
+            }
 
-                const response = await fetch('/invert', {
-                    method: 'POST',
-                    body: formData
-                });
+            function unhighlight(e) {
+                dropZone.classList.remove('dragover');
+            }
 
-                if (response.ok) {
-                    progressBar.style.width = '100%';
-                    percentText.textContent = '100%';
-                    statusText.textContent = 'Done! Downloading...';
-                    statusContainer.classList.add('success-mode');
+            dropZone.addEventListener('drop', handleDrop, false);
 
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `inverted_${file.name}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    a.remove();
-                } else {
-                    const errorText = await response.text();
-                    statusText.textContent = 'Error: ' + response.status;
-                    percentText.textContent = 'X';
-                    alert('Server Error: ' + errorText);
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                fileInput.files = files;
+                handleFileSelect();
+            }
+
+            fileInput.addEventListener('change', handleFileSelect);
+
+            async function handleFileSelect() {
+                if (fileInput.files.length > 0) {
+                    fileLabel.textContent = fileInput.files[0].name;
+
+                    // Reset UI for new analysis
+                    detailsCard.style.display = 'none';
+                    statusContainer.style.display = 'none';
+                    processBtn.disabled = true;
+                    processBtn.innerHTML = '<i data-lucide="loader" class="spin"></i> Analyzing...';
+
+                    await analyzeFile();
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                statusText.textContent = 'Connection Failed';
-                percentText.textContent = 'X';
-            } finally {
-                processBtn.disabled = false;
             }
-        }
-    </script>
+
+            async function analyzeFile() {
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch('/analyze', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+
+                        document.getElementById('detailName').textContent = data.filename;
+                        document.getElementById('detailPages').textContent = data.pages;
+                        document.getElementById('detailSize').textContent = data.size_mb + ' MB';
+                        document.getElementById('detailAuthor').textContent = data.author || 'N/A';
+
+                        detailsCard.style.display = 'flex';
+                        processBtn.disabled = false;
+                        processBtn.innerHTML = '<i data-lucide="wand-2" width="18"></i> Invert Colors';
+                        lucide.createIcons(); // Re-init icons for the new button content
+                    } else {
+                        alert("Failed to analyze file.");
+                    }
+
+                } catch (e) {
+                    console.error(e);
+                    alert("Error analyzing file.");
+                }
+            }
+
+            async function processFile() {
+                if (fileInput.files.length === 0) {
+                    alert('Please select a file first');
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // UI Reset
+                processBtn.disabled = true;
+                statusContainer.style.display = 'block';
+                statusContainer.classList.remove('success-mode');
+                progressBar.style.width = '20%';
+                statusText.textContent = 'Uploading & Processing...';
+                percentText.textContent = '20%';
+
+                try {
+                    // Simulate some progress
+                    setTimeout(() => { progressBar.style.width = '50%'; percentText.textContent = '50%'; }, 200);
+
+                    const response = await fetch('/invert', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        progressBar.style.width = '100%';
+                        percentText.textContent = '100%';
+                        statusText.textContent = 'Done! Downloading...';
+                        statusContainer.classList.add('success-mode');
+
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `inverted_${file.name}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        a.remove();
+                    } else {
+                        const errorText = await response.text();
+                        statusText.textContent = 'Error: ' + response.status;
+                        percentText.textContent = 'X';
+                        alert('Server Error: ' + errorText);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    statusText.textContent = 'Connection Failed';
+                    percentText.textContent = 'X';
+                } finally {
+                    processBtn.disabled = false;
+                }
+            }
+        </script>
 </body>
 
 </html>
