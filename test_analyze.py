@@ -38,9 +38,10 @@ def test_analyze_endpoint():
         print("Response Data:", data)
         
         # specific check for keys
-        required_keys = ["filename", "size_mb", "pages", "title", "author"]
+        required_keys = ["filename", "size_mb", "pages", "title", "author", "orientation"]
         if all(k in data for k in required_keys):
             print("Verified all required keys are present.")
+            print(f"Detected Orientation: {data.get('orientation')}")
         else:
             print("Missing keys in response:", data)
             

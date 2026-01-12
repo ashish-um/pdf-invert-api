@@ -24,6 +24,18 @@ def read_root():
 def read_item(item_id: int):
     return {"item_id": item_id, "status": "active"}
 
+def get_dominant_orientation(doc):
+    portrait_count = 0
+    landscape_count = 0
+    
+    for page in doc:
+        if page.rect.height > page.rect.width:
+            portrait_count += 1
+        else:
+            landscape_count += 1
+            
+    return "Portrait" if portrait_count >= landscape_count else "Landscape"
+
 @app.post("/analyze")
 async def analyze_pdf(file: UploadFile = File(...)):
     content = await file.read()
@@ -33,12 +45,15 @@ async def analyze_pdf(file: UploadFile = File(...)):
         doc = fitz.open(stream=content, filetype="pdf")
         pages = len(doc)
         info = doc.metadata
+        orientation = get_dominant_orientation(doc)
+        
         return {
             "filename": file.filename,
             "size_mb": round(size_mb, 2),
             "pages": pages,
             "title": info.get("title", ""),
-            "author": info.get("author", "")
+            "author": info.get("author", ""),
+            "orientation": orientation
         }
     except Exception as e:
         return {"error": str(e)}
@@ -47,9 +62,6 @@ async def analyze_pdf(file: UploadFile = File(...)):
 async def invert_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     # Create a temporary file in the system temp directory
     # This ensures it works on read-only file systems (like some container setups)
-    temp_filename = os.path.join(os.getcwd(), f"temp_{uuid.uuid4()}.pdf")
-    # Ideally use proper temp dir, but let's stick to CWD if we want simple relative paths, 
-    # OR use /tmp explicitly. Let's use tempfile.gettempdir() for best practice.
     import tempfile
     temp_filename = os.path.join(tempfile.gettempdir(), f"temp_{uuid.uuid4()}.pdf")
     
@@ -62,13 +74,22 @@ async def invert_pdf(background_tasks: BackgroundTasks, file: UploadFile = File(
         # Open the PDF from disk
         doc = fitz.open(temp_filename)
         
+        # Determine dominant orientation
+        orientation = get_dominant_orientation(doc)
+        is_portrait_mode = orientation == "Portrait"
+        
         # Process each page
         for page in doc:
-            # Calculate the rectangle for the top some percentage of the page
             r = page.rect
-            top_part_rect = fitz.Rect(r.x0, r.y0, r.x1, r.y0 + r.height * 0.435656)
+            
+            if is_portrait_mode:
+                # Top ~44% for Portrait
+                top_part_rect = fitz.Rect(r.x0, r.y0, r.x1, r.y0 + r.height * 0.435656)
+            else:
+                # Full page for Landscape
+                top_part_rect = fitz.Rect(r.x0, r.y0, r.x1, r.y1)
 
-            # Create a rectangle annotation covering the top part
+            # Create a rectangle annotation covering the area
             annot = page.add_rect_annot(top_part_rect)
             
             # Remove border
